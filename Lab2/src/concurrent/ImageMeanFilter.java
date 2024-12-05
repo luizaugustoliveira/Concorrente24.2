@@ -29,7 +29,7 @@ public class ImageMeanFilter {
      * @param kernelSize Size of mean kernel
      * @throws IOException If there is an error reading/writing
      */
-    public static void applyMeanFilter(String inputPath, String outputPath, int kernelSize) throws IOException {
+    public static void applyMeanFilter(String inputPath, String outputPath, int kernelSize, int numThreads) throws IOException {
         // Load image
         BufferedImage originalImage = ImageIO.read(new File(inputPath));
         
@@ -41,27 +41,51 @@ public class ImageMeanFilter {
         );
         
         // Image processing
-        int width = originalImage.getWidth();
+        //int width = originalImage.getWidth();
         int height = originalImage.getHeight();
+        int segmentHeight = height / numThreads;
+        Thread[] threads = new Thread[numThreads];
+
         // Process each pixel
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                // Calculate neighborhood average
-                int[] avgColor = calculateNeighborhoodAverage(originalImage, x, y, kernelSize);
-                
-                // Set filtered pixel
-                filteredImage.setRGB(x, y, 
-                    (avgColor[0] << 16) | 
-                    (avgColor[1] << 8)  | 
-                    avgColor[2]
-                );
+        for (int i = 0; i < numThreads; i++) {
+            //for (int x = 0; x < width; x++) {
+            int startRow = i*segmentHeight;
+            int endRow = (i == numThreads - 1) ? height : startRow + segmentHeight;
+
+            threads[i] = new Thread(() -> processSegment(originalImage, filteredImage, startRow, endRow, kernelSize));
+            threads[i].start();
+            }
+        
+        // As threads depois de serem iniciadas com o método start(), serão esperadas com o join() para garantir que todas completem o processamento antes de salvar o arquivo
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                System.err.println("Thread interrupted: " + e.getMessage());
             }
         }
-        
+
         // Save filtered image
         ImageIO.write(filteredImage, "jpg", new File(outputPath));
     }
     
+    private static void processSegment(BufferedImage originalImage, BufferedImage filteredImage, int startRow, int endRow, int kernelSize) {
+        int width = originalImage.getWidth();
+
+        for (int y = startRow; y < endRow; y++) {
+            for (int x = 0; x < width; x++) {
+                int[] avgColor = calculateNeighborhoodAverage(originalImage, x, y, kernelSize);
+                synchronized (filteredImage) { 
+                    filteredImage.setRGB(x, y,
+                        (avgColor[0] << 16) |
+                        (avgColor[1] << 8) |
+                        avgColor[2]
+                    );
+                }
+            }
+        }
+    }
+
     /**
      * Calculates average colors in a pixel's neighborhood
      * 
@@ -136,7 +160,7 @@ public class ImageMeanFilter {
 
         String inputFile = args[0];
         try {
-            applyMeanFilter(inputFile, "filtered_output.jpg", 7);
+            applyMeanFilter(inputFile, "filtered_output.jpg", 7, 4);
         } catch (IOException e) {
             System.err.println("Error processing image: " + e.getMessage());
         }
