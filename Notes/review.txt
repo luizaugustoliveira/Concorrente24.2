@@ -1,0 +1,157 @@
+# REVISÃO DA PARTE DE THREADS
+
+Claro! Vamos detalhar a parte do **processamento concorrente usando threads**:
+
+### Código Detalhado:
+
+```java
+// Lista para armazenar as threads
+List<Thread> threads = new ArrayList<>();
+
+// Loop sobre os arquivos
+for (File file : files) {
+    // Criação de uma nova thread para processar cada arquivo
+    Thread thread = new Thread(() -> processFile(file));
+
+    // Adiciona a thread à lista de threads
+    threads.add(thread);
+
+    // Inicia a execução da thread
+    thread.start();
+}
+
+// Espera todas as threads terminarem antes de continuar (opcional)
+for (Thread thread : threads) {
+    try {
+        // Bloqueia o fluxo até que a thread termine a execução
+        thread.join();
+    } catch (InterruptedException e) {
+        // Caso a thread seja interrompida, imprime o erro
+        e.printStackTrace();
+    }
+}
+
+```
+
+### Explicação Passo a Passo:
+
+1. **`List<Thread> threads = new ArrayList<>();`**
+    - Criamos uma lista para armazenar as threads que vamos criar. Essa lista é importante se você quiser esperar que todas as threads terminem antes de o programa finalizar (usando `join` no próximo passo).
+2. **`for (File file : files) {`**
+    - Iniciamos um loop sobre os arquivos no diretório (como já vimos no código serial). Para cada arquivo, será criada uma thread que irá processá-lo de forma independente.
+3. **`Thread thread = new Thread(() -> processFile(file));`**
+    - **Criação de uma nova thread**: A instância de `Thread` recebe um `Runnable` (representado pela expressão `() -> processFile(file)`) que define o que a thread vai fazer. No caso, o método `processFile(file)` será chamado em uma thread separada.
+    - **`Runnable`**: A interface `Runnable` é implementada com uma expressão lambda (`() -> processFile(file)`). Essa lambda define a lógica que será executada pela thread: o processamento do arquivo específico.
+4. **`threads.add(thread);`**
+    - A thread criada é adicionada à lista `threads` para manter o controle sobre todas as threads em execução. Isso é útil se você quiser aguardar todas as threads terminarem usando o método `join`, que veremos a seguir.
+5. **`thread.start();`**
+    - **Inicia a execução da thread**: O método `start()` é chamado para iniciar a execução da thread. Isso faz com que o código dentro da expressão lambda (`processFile(file)`) seja executado em paralelo, ou seja, o processamento do arquivo ocorre de forma concorrente com as demais threads.
+6. **`for (Thread thread : threads) {`**
+    - Após iniciar todas as threads, o código entra em outro loop para aguardar que todas as threads terminem antes de o programa finalizar.
+7. **`thread.join();`**
+    - **`join()`**: Este método bloqueia o fluxo do programa até que a thread sobre a qual foi chamado termine sua execução.
+    - Ou seja, o programa vai esperar que cada thread termine de processar o arquivo antes de continuar. Isso é importante para garantir que todas as threads terminem o processamento antes de o programa continuar ou terminar sua execução.
+8. **`catch (InterruptedException e) {`**
+    - Se alguma thread for interrompida enquanto está aguardando (por exemplo, se o processo for cancelado), uma exceção `InterruptedException` será lançada. O código captura essa exceção e imprime o erro (`e.printStackTrace()`).
+
+### Benefícios da Concorrência com Threads:
+
+- **Paralelismo**: O uso de múltiplas threads permite que o processamento de arquivos ocorra simultaneamente, o que pode melhorar a performance, especialmente se houver múltiplos núcleos de CPU disponíveis.
+- **Desempenho**: Em sistemas com múltiplos núcleos de processador, cada thread pode ser executada em um núcleo diferente, acelerando o processamento de arquivos.
+
+### Considerações Importantes:
+
+- **Concorrência e Sincronização**: Como o processamento de arquivos é feito em threads separadas, é importante garantir que não haja conflitos de acesso a recursos compartilhados (por exemplo, ao ler ou escrever nos mesmos arquivos). Nesse caso, cada thread está processando um arquivo separado, então não há risco de conflito direto, mas em outras situações seria necessário usar mecanismos de sincronização.
+- **Gestão de Threads**: Embora a criação de threads manualmente (como mostrado aqui) funcione bem em casos simples, em programas mais complexos, pode ser preferível usar um **pool de threads** (por exemplo, `ExecutorService`), o que ajuda a gerenciar a criação e execução das threads de forma mais eficiente, além de evitar a criação de um número excessivo de threads.
+
+### Resumo:
+
+Essa parte do código usa threads para processar os arquivos de forma concorrente. Cada thread processa um arquivo separadamente e, ao final, o código espera todas as threads terminarem antes de encerrar a execução do programa. Isso melhora o desempenho, especialmente quando se tem muitos arquivos e um sistema com múltiplos núcleos de CPU.
+
+---
+
+# REVISÃO DA PARTE DE SEMÁFOROS
+
+Vamos revisar o código com foco na sintaxe dos **semáforos** e como eles são utilizados para sincronização no exemplo de uma **fila com buffer limitado**. Vou explicar cada parte em detalhe:
+
+### Código com Semáforos:
+
+### **Classe `BufferedQueue<T>`:**
+
+A classe `BufferedQueue` é uma fila de buffer com capacidade limitada, usando semáforos para controlar o acesso à fila de forma segura, com threads produtores e consumidores.
+
+```java
+private final Semaphore spaceAvailable;
+private final Semaphore itemsAvailable;
+private final Semaphore mutex;
+
+```
+
+- **`spaceAvailable`**: Semáforo que controla o número de espaços disponíveis na fila. Inicia com a capacidade da fila, indicando quantos itens a fila pode aceitar antes de se tornar cheia.
+- **`itemsAvailable`**: Semáforo que controla o número de itens disponíveis na fila. Inicialmente, é 0, porque não há itens na fila.
+- **`mutex`**: Semáforo binário (1 permissão) usado para garantir que o acesso à fila (que é um recurso compartilhado) seja sincronizado, ou seja, uma única thread pode acessar a fila por vez.
+
+### **Construtor:**
+
+```java
+public BufferedQueue(int capacity) {
+    this.capacity = capacity;
+    this.queue = new LinkedList<>();
+    this.spaceAvailable = new Semaphore(capacity); // Inicializa o semáforo com a capacidade
+    this.itemsAvailable = new Semaphore(0); // Inicializa com 0, pois não há itens no início
+    this.mutex = new Semaphore(1); // Inicializa com 1, garantindo acesso exclusivo à fila
+}
+
+```
+
+- **`spaceAvailable`** é inicializado com o valor da capacidade do buffer, permitindo que um número limitado de itens seja inserido na fila.
+- **`itemsAvailable`** começa com 0, já que inicialmente a fila está vazia.
+- **`mutex`** começa com 1, permitindo que apenas uma thread tenha acesso exclusivo à fila de cada vez.
+
+### **Método `enqueue`:**
+
+```java
+public void enqueue(T item) throws InterruptedException {
+    spaceAvailable.acquire(); // Decrementa o semáforo para verificar se há espaço disponível na fila
+    mutex.acquire(); // Acessa a fila de maneira exclusiva (sincronização)
+    try {
+        queue.add(item); // Adiciona o item à fila
+        System.out.println("Produzido: " + item); // Exibe a produção do item
+    } finally {
+        mutex.release(); // Libera a exclusão do acesso à fila
+    }
+    itemsAvailable.release(); // Incrementa o semáforo indicando que há um item disponível para consumo
+}
+
+```
+
+- **`spaceAvailable.acquire()`**: Este semáforo é decrementado cada vez que um item é inserido na fila. Se não houver mais espaço na fila (se o semáforo estiver 0), a thread de produtor é bloqueada até que haja espaço.
+- **`mutex.acquire()`**: Usado para garantir que apenas uma thread (produtora) possa acessar e modificar a fila de cada vez.
+- **`queue.add(item)`**: Adiciona o item à fila.
+- **`mutex.release()`**: Libera a exclusão do acesso à fila.
+- **`itemsAvailable.release()`**: Após adicionar o item, o semáforo `itemsAvailable` é incrementado para sinalizar que há um item disponível para consumo, permitindo que o consumidor continue.
+
+### **Método `dequeue`:**
+
+```java
+public T dequeue() throws InterruptedException {
+    itemsAvailable.acquire(); // Decrementa o semáforo para verificar se há itens para consumir
+    T item;
+    mutex.acquire(); // Acessa a fila de maneira exclusiva (sincronização)
+    try {
+        item = queue.poll(); // Remove e retorna o item da fila
+        System.out.println("Consumido: " + item); // Exibe o consumo do item
+    } finally {
+        mutex.release(); // Libera a exclusão do acesso à fila
+    }
+    spaceAvailable.release(); // Incrementa o semáforo indicando que há espaço disponível na fila
+    return item;
+}
+
+```
+
+- **`itemsAvailable.acquire()`**: Decrementa o semáforo `itemsAvailable` para garantir que a fila tenha pelo menos um item para consumir. Se o semáforo estiver 0 (sem itens na fila), a thread consumidora será bloqueada até que um item seja produzido.
+- **`mutex.acquire()`**: Garante que a thread consumidora tenha acesso exclusivo à fila enquanto a remove.
+- **`queue.poll()`**: Remove e retorna o item da fila.
+- **`mutex.release()`**: Libera a exclusão do acesso à fila após a remoção do item.
+- **`spaceAvailable.release()`**: Após remover um item da fila, o semáforo `spaceAvailable` é incrementado para indicar que há um espaço disponível na fila, permitindo que um produtor continue a inserir itens.
