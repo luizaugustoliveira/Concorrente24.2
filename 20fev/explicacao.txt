@@ -1,0 +1,7 @@
+Explicação:
+A classe Contador tem um método incrementar(), que é synchronized, garantindo que apenas uma thread possa acessá-lo por vez.
+O método getValor() também é synchronized para evitar leituras inconsistentes.
+Criamos duas threads que chamam incrementar() em um loop.
+O uso de Thread.sleep(100) simula um pequeno delay para tornar a concorrência mais visível.
+join() garante que o programa principal espere ambas as threads terminarem antes de imprimir o valor final.
+Isso cobre a ideia de proteger a região crítica de uma variável normal com synchronized, sem precisar lidar diretamente com variáveis condicionais. Se precisar de alguma adaptação, me avisa! 🚀
