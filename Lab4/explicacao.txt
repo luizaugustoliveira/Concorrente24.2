@@ -1,0 +1,212 @@
+Aqui está a explicação detalhada do código **linha por linha**:
+
+---
+
+### **Importações**
+```java
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.concurrent.*;
+```
+Essas importações trazem classes necessárias para manipular arquivos (`FileInputStream`, `Files`, `Path` e `Paths`), armazenar dados (`List`, `Map`, `ArrayList`, `HashMap`, `Collections`), além de importar classes para programação concorrente (`ExecutorService`, `Future`, `ConcurrentHashMap`, `TimeUnit`).
+
+---
+
+### **Declaração da Classe**
+```java
+public class ConcurrentSum {
+```
+Define a classe principal chamada `ConcurrentSum`.
+
+---
+
+### **Declaração de Variáveis Globais**
+```java
+private static final Map<Long, List<String>> sumMap = new ConcurrentHashMap<>();
+```
+- Armazena a soma dos bytes de cada arquivo como chave (`Long`).
+- Mantém uma lista de arquivos que possuem essa soma como valor (`List<String>`).
+- `ConcurrentHashMap` é usado para permitir acesso concorrente seguro.
+
+```java
+private static final Object lock = new Object();
+```
+- Define um objeto de bloqueio para sincronizar a atualização da variável `totalSum`.
+
+```java
+private static long totalSum = 0;
+```
+- Armazena a soma total de todos os arquivos processados.
+
+---
+
+### **Método para Calcular a Soma dos Bytes de um Arquivo**
+```java
+public static int sum(FileInputStream fis) throws IOException {
+    int byteRead;
+    int sum = 0;
+    while ((byteRead = fis.read()) != -1) {
+        sum += byteRead;
+    }
+    return sum;
+}
+```
+- Recebe um `FileInputStream` (`fis`).
+- Lê cada byte do arquivo e acumula o valor na variável `sum`.
+- Retorna a soma total dos bytes do arquivo.
+
+---
+
+### **Método para Abrir um Arquivo e Calcular sua Soma**
+```java
+public static long sum(String path) throws IOException {
+    Path filePath = Paths.get(path);
+```
+- Converte a string `path` para um objeto `Path` para manipulação de arquivos.
+
+```java
+    if (Files.isRegularFile(filePath)) {
+```
+- Verifica se o caminho corresponde a um arquivo normal (não um diretório, link simbólico etc.).
+
+```java
+        try (FileInputStream fis = new FileInputStream(filePath.toString())) {
+            return sum(fis);
+        }
+```
+- Cria um `FileInputStream` para ler o conteúdo do arquivo.
+- Chama o método `sum(FileInputStream fis)` para calcular a soma dos bytes.
+- O bloco `try-with-resources` garante que o `FileInputStream` seja fechado automaticamente.
+
+```java
+    } else {
+        throw new RuntimeException("Non-regular file: " + path);
+    }
+}
+```
+- Se não for um arquivo normal, lança uma exceção informando que o arquivo não pode ser processado.
+
+---
+
+### **Método `main` - Ponto de Entrada do Programa**
+```java
+public static void main(String[] args) throws Exception {
+```
+- O método principal recebe argumentos (`args`) que são os caminhos dos arquivos a serem processados.
+
+```java
+    if (args.length < 1) {
+        System.err.println("Usage: java ConcurrentSum filepath1 filepath2 filepathN");
+        System.exit(1);
+    }
+```
+- Verifica se o usuário passou pelo menos um arquivo como argumento.
+- Se não, exibe uma mensagem de erro e encerra o programa.
+
+```java
+    int n = args.length;
+    int maxThreads = Math.max(1, n / 2);
+```
+- `n` recebe a quantidade de arquivos passados como argumento.
+- Define o número máximo de threads simultâneas (`maxThreads = N/2`). Se `n` for 1, pelo menos uma thread será usada.
+
+```java
+    ExecutorService executor = Executors.newFixedThreadPool(maxThreads);
+```
+- Cria um `ExecutorService` com um número fixo de threads (`maxThreads`), garantindo que apenas `N/2` threads processem arquivos ao mesmo tempo.
+
+```java
+    List<Future<Map.Entry<String, Long>>> futures = new ArrayList<>();
+```
+- Cria uma lista para armazenar os resultados das operações assíncronas usando `Future`.
+
+---
+
+### **Processamento Concorrente dos Arquivos**
+```java
+    for (String path : args) {
+```
+- Percorre a lista de arquivos passados como argumento.
+
+```java
+        futures.add(executor.submit(() -> {
+```
+- Para cada arquivo, cria uma tarefa assíncrona usando `submit()` do `ExecutorService`.
+- A tarefa será executada por uma das threads do pool.
+
+```java
+            long fileSum = sum(path);
+```
+- Chama `sum(path)` para calcular a soma dos bytes do arquivo.
+
+```java
+            System.out.println(path + " : " + fileSum);
+```
+- Imprime o nome do arquivo e sua soma.
+
+```java
+            synchronized (lock) {
+                totalSum += fileSum;
+            }
+```
+- Garante que a atualização da variável `totalSum` seja feita de forma segura usando um bloco `synchronized`.
+
+```java
+            sumMap.computeIfAbsent(fileSum, k -> Collections.synchronizedList(new ArrayList<>())).add(path);
+```
+- Usa `computeIfAbsent()` para garantir que exista uma lista associada à soma `fileSum`.
+- Adiciona o nome do arquivo à lista correspondente à soma `fileSum`.
+
+```java
+            return Map.entry(path, fileSum);
+        }));
+```
+- Retorna um `Map.Entry<String, Long>` contendo o nome do arquivo e sua soma.
+- O resultado é armazenado na lista `futures`.
+
+---
+
+### **Finalização e Impressão dos Resultados**
+```java
+    executor.shutdown();
+    executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+```
+- `shutdown()` impede novas tarefas de serem enviadas ao executor.
+- `awaitTermination()` espera até que todas as threads terminem a execução.
+
+```java
+    System.out.println("Total Sum: " + totalSum);
+```
+- Exibe a soma total de todos os arquivos.
+
+```java
+    for (Map.Entry<Long, List<String>> entry : sumMap.entrySet()) {
+        if (entry.getValue().size() > 1) {
+```
+- Percorre o `sumMap`, verificando quais somas aparecem mais de uma vez.
+
+```java
+            System.out.println(entry.getKey() + " " + String.join(" ", entry.getValue()));
+```
+- Se houver arquivos com a mesma soma, imprime o valor da soma seguido dos nomes dos arquivos.
+
+---
+
+## **Resumo do Funcionamento**
+1. **Lê os arquivos de forma concorrente usando `ExecutorService`**.
+2. **Garante que no máximo `N/2` threads processam arquivos simultaneamente**.
+3. **Armazena a soma total de todos os arquivos em `totalSum`**.
+4. **Agrupa arquivos com mesma soma usando um `ConcurrentHashMap`**.
+5. **Exibe os arquivos e suas somas individuais**.
+6. **Imprime a soma total**.
+7. **Exibe os arquivos que possuem somas idênticas**.
+
+Essa explicação te ajudou? Precisa de ajustes ou quer testes de exemplo? 🚀
