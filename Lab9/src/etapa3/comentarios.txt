@@ -1,0 +1,3 @@
+QUando o tempo de produção for maior que o de consumo, o consumidor pode atingir timeout antes de consumir todos os números, visto que os valores mais altos vão ser consumidos primeiro e os menores ficam na fila.
+
+Quando o tempo de produção for menor que o de consumo, a fila acumula rapidamente e os números maiores terão prioridade fazendo com o que os números pequenos fiquem presos na fila por mais tempo

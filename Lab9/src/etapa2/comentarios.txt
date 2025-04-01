@@ -1,0 +1,4 @@
+Quando de produção for maior que o de consumo,o consumidor aguarda mais tempo até que o número seja produzido. Porém ele processará todos os números até a fila esvaziar. 
+
+Quando o tempo de produção for menor que o de consumo, a fila cresce rapidamente e depois esvazia e o consumidor pode parar de consumir antes que todos os números sejam gerados caso o timeout ocorra antes da finalização do produto
+

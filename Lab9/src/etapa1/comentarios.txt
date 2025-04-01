@@ -1,0 +1,3 @@
+Quando o tempo de produção é maior que o de consumo há uma espera do consumidor por novos números visto que o produtor demora mais para gerar valores.
+
+Quando o contrário acontece, a fila pode ficar cheia de forma mais rápida já que os números são gerados mais do que são consumidos.
