@@ -1,7 +1,6 @@
 import java.io.*;
 import java.util.concurrent.*;
 
-// Versão 1: Código serial
 public class ContadorPalavras {
     public static void main(String[] args) {
         if (args.length == 0) {
@@ -34,7 +33,6 @@ public class ContadorPalavras {
     }
 }
 
-// Versão 2: Código concorrente com Threads
 class ContadorPalavras2 {
     public static void main(String[] args) {
         if (args.length == 0) {
@@ -69,7 +67,6 @@ class ContadorPalavras2 {
     }
 }
 
-// Versão 3: Uso do ExecutorService
 class ContadorPalavras3 {
     public static void main(String[] args) {
         if (args.length == 0) {
@@ -102,7 +99,6 @@ class ContadorPalavras3 {
     }
 }
 
-// Versão 4: Uso de Callable e Future
 class ContadorPalavras4 {
     public static void main(String[] args) {
         if (args.length == 0) {
